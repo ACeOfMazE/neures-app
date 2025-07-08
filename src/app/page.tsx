@@ -1,185 +1,71 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Bot, Bluetooth, Loader, Volume2, XCircle } from "lucide-react";
-
-// Using Nordic UART Service UUIDs which are common for BLE serial communication
-const BLE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const BLE_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+import { ChevronLeft, Settings, X, RotateCw, Waves } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [device, setDevice] = useState<BluetoothDevice | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [messageLog, setMessageLog] = useState<string>("");
-  const [currentSubtitle, setCurrentSubtitle] = useState<string>
-    ("Connect to start translating.");
-  const [error, setError] = useState<string | null>(null);
-  const characteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-
-  const handleNotifications = useCallback((event: Event) => {
-    const target = event.target as BluetoothRemoteGATTCharacteristic;
-    const value = target.value;
-    if (value) {
-      const decoder = new TextDecoder("utf-8");
-      const text = decoder.decode(value);
-
-      setMessageLog((prevLog) => prevLog + text + "\n");
-      setCurrentSubtitle(text);
-
-      // Text-to-Speech
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
-
-  const handleDisconnect = useCallback(() => {
-    if (device?.gatt?.connected) {
-      device.gatt.disconnect();
-    }
-    if (characteristicRef.current) {
-        characteristicRef.current.removeEventListener(
-          "characteristicvaluechanged",
-          handleNotifications
-        );
-    }
-    setDevice(null);
-    characteristicRef.current = null;
-    setMessageLog("");
-    setCurrentSubtitle("Connect to start translating.");
-    console.log("Device disconnected.");
-  }, [device, handleNotifications]);
-
-  const connectToDevice = async () => {
-    setError(null);
-    setIsConnecting(true);
-    try {
-      if (!navigator.bluetooth) {
-        throw new Error("Web Bluetooth API is not available on this browser.");
-      }
-      
-      const requestedDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [BLE_SERVICE_UUID] }],
-      });
-
-      setDevice(requestedDevice);
-      
-      requestedDevice.addEventListener('gattserverdisconnected', handleDisconnect);
-
-      const server = await requestedDevice.gatt?.connect();
-      if (!server) {
-        throw new Error("GATT Server not found.");
-      }
-
-      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
-      const characteristic = await service.getCharacteristic(BLE_CHARACTERISTIC_UUID);
-      characteristicRef.current = characteristic;
-
-      await characteristic.startNotifications();
-      characteristic.addEventListener(
-        "characteristicvaluechanged",
-        handleNotifications
-      );
-      
-      setCurrentSubtitle("Connected. Waiting for signal...");
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`Connection failed: ${errorMessage}`);
-      handleDisconnect();
-    } finally {
-      setIsConnecting(false);
-    }
-  };
+  const [dots, setDots] = useState("");
 
   useEffect(() => {
-    // This is a defensive cleanup. 
-    // The primary cleanup is now in handleDisconnect.
-    return () => {
-       if (device) {
-           handleDisconnect();
-       }
-    };
-  }, [device, handleDisconnect]);
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="dark">
-      <main className="bg-background text-foreground flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 md:p-8 font-body">
-        <Card className="w-full max-w-2xl rounded-xl shadow-2xl bg-card/80 backdrop-blur-sm border-border/50">
-          <CardHeader className="text-center">
-            <div className="mx-auto bg-primary/20 p-3 rounded-full mb-4 w-fit">
-              <Bot className="h-10 w-10 text-primary" />
+      <main className="bg-background text-foreground min-h-screen flex flex-col items-center justify-between p-6 font-sans">
+        <header className="flex justify-between items-center w-full max-w-sm z-10">
+          <Button variant="ghost" size="icon" className="text-neutral-400 hover:bg-muted">
+            <ChevronLeft className="h-7 w-7" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+            </span>
+            <span className="text-sm text-neutral-300">Listening...</span>
+          </div>
+          <Button variant="ghost" size="icon" className="text-neutral-400 hover:bg-muted">
+            <Settings className="h-6 w-6" />
+          </Button>
+        </header>
+
+        <section className="flex flex-col items-center justify-center flex-grow text-center -mt-10">
+          <div className="relative w-72 h-72 flex items-center justify-center mb-12">
+            <div className="absolute inset-0 bg-orange-400/20 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute inset-10 bg-yellow-500/20 rounded-full blur-3xl animate-pulse [animation-delay:0.5s]"></div>
+            
+            <div className="relative z-10">
+              <div className="flex gap-6 mb-3">
+                <div className="w-3.5 h-5 bg-background rounded-full"></div>
+                <div className="w-3.5 h-5 bg-background rounded-full"></div>
+              </div>
+              <div className="w-12 h-6 border-b-4 border-background rounded-b-full mx-auto"></div>
             </div>
-            <CardTitle className="text-4xl font-headline font-bold text-primary">
-              Nereus Glove Translator
-            </CardTitle>
-            <CardDescription className="text-accent-foreground/70">
-              Connect your glove and see the translation in real-time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-6 pb-8">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Textarea
-                  id="message-log"
-                  readOnly
-                  value={messageLog}
-                  placeholder="Received messages will appear here..."
-                  className="h-48 resize-none rounded-lg text-base shadow-inner bg-background/50 focus-visible:ring-primary"
-                  aria-label="Message Log"
-                />
-              </div>
+          </div>
+          
+          <div>
+            <p className="text-4xl text-neutral-400">Turn on</p>
+            <h1 className="text-5xl font-bold text-white tracking-tight">
+              Air conditioner<span className="w-8 inline-block text-left">{dots}</span>
+            </h1>
+          </div>
+        </section>
 
-              <div className="flex justify-center">
-                <Button
-                  onClick={device ? handleDisconnect : connectToDevice}
-                  disabled={isConnecting}
-                  className="w-full max-w-xs rounded-full text-lg py-6 px-8 shadow-lg transition-all duration-300 hover:shadow-primary/40 focus-visible:ring-offset-background focus-visible:ring-offset-2"
-                  size="lg"
-                  variant={device ? "destructive" : "default"}
-                >
-                  {isConnecting ? (
-                    <Loader className="mr-2 h-5 w-5 animate-spin" />
-                  ) : device ? (
-                    <XCircle className="mr-2 h-5 w-5" />
-                  ) : (
-                    <Bluetooth className="mr-2 h-5 w-5" />
-                  )}
-                  {isConnecting
-                    ? "Connecting..."
-                    : device
-                    ? "Disconnect Glove"
-                    : "🔗 Connect Glove"}
-                </Button>
-              </div>
-
-              {error && (
-                <p className="text-center text-destructive/90">{error}</p>
-              )}
-
-              <div className="mt-6 text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Real-time Subtitle
-                </p>
-                <div className="flex items-center justify-center gap-3 p-4 rounded-lg bg-background/50 shadow-inner min-h-[4rem]">
-                  <Volume2 className="h-6 w-6 text-accent flex-shrink-0" />
-                  <p className="text-xl font-medium text-accent-foreground tracking-wide">
-                    {currentSubtitle}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <footer className="flex justify-around items-center w-full max-w-sm z-10">
+          <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full bg-muted/80 text-neutral-400 hover:bg-muted">
+            <X className="h-7 w-7" />
+          </Button>
+          <Button variant="ghost" size="icon" className="w-20 h-20 rounded-full bg-muted/80 text-white hover:bg-muted shadow-lg">
+            <Waves className="h-10 w-10" />
+          </Button>
+          <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full bg-muted/80 text-neutral-400 hover:bg-muted">
+            <RotateCw className="h-7 w-7" />
+          </Button>
+        </footer>
       </main>
     </div>
   );
