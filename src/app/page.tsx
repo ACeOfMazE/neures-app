@@ -2,11 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, LoaderCircle, Settings } from 'lucide-react';
+import { X, LoaderCircle, Settings, Moon, Sun } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/tts-flow';
 import { cn } from "@/lib/utils";
 
-// IMPORTANT: Replace with your actual glove's service and characteristic UUIDs
 const GLOVE_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
 const GLOVE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
@@ -17,9 +16,31 @@ export default function Home() {
   const [subtitle, setSubtitle] = useState("");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSkipped, setIsSkipped] = useState(false);
+  const [theme, setTheme] = useState("dark");
 
   const textBuffer = useRef("");
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+    // Persist theme choice
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    // On initial load, check for saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "dark" ? "light" : "dark"));
+  };
   
   const handleNotifications = useCallback(async (event: Event) => {
     const target = event.target as BluetoothRemoteGattCharacteristic;
@@ -82,6 +103,7 @@ export default function Home() {
       characteristic?.addEventListener('characteristicvaluechanged', handleNotifications);
       
       setDevice(btDevice);
+      setIsSkipped(false); // No longer in skipped mode
       setMessage("Glove Connected!");
     } catch (error) {
       console.error("Bluetooth Connection Error:", error);
@@ -96,6 +118,15 @@ export default function Home() {
       device.gatt.disconnect();
     }
   }, [device]);
+
+  const handleSkip = () => {
+    setIsSkipped(true);
+  };
+  
+  const handleGoBack = () => {
+    setIsSkipped(false);
+    setDevice(null);
+  };
 
   useEffect(() => {
     if (audioUrl && audioRef.current) {
@@ -114,33 +145,52 @@ export default function Home() {
     setIsSpeaking(false);
   }
   
-  if (device) {
+  const ThemeToggleButton = () => (
+    <Button onClick={toggleTheme} variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+      <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+
+  if (device || isSkipped) {
+    const isActuallyConnected = device !== null;
     return (
-      <main className="relative bg-black text-white flex flex-col min-h-screen items-center justify-between p-4 font-sans text-center overflow-hidden">
-        <header className="w-full flex items-center justify-start z-10 p-2">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-            <span className="text-sm font-medium">Live</span>
-          </div>
+      <main className="relative bg-background text-foreground flex flex-col min-h-screen items-center justify-between p-4 font-sans text-center overflow-hidden">
+        <header className="w-full flex items-center justify-between z-10 p-2">
+          <ThemeToggleButton />
+          {isActuallyConnected && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background/40 backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-destructive animate-pulse"></div>
+              <span className="text-sm font-medium">Live</span>
+            </div>
+          )}
+           <div className="w-10"/> {/* Spacer */}
         </header>
 
         <section className="flex-grow flex items-center justify-center z-10">
-          <p className="text-3xl font-medium text-white/90 max-w-lg px-4 transition-opacity duration-300">
-            {subtitle}
+          <p className="text-3xl font-medium text-foreground/90 max-w-lg px-4 transition-opacity duration-300">
+             {isActuallyConnected ? subtitle : "Not Connected"}
           </p>
         </section>
 
         <div
           className={cn(
               "absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom,_hsl(var(--primary)/0.25)_0%,_transparent_70%)] transition-all duration-500 ease-in-out origin-bottom pointer-events-none",
-              isSpeaking ? "animate-glow-pulse opacity-100" : "opacity-0 scale-y-50"
+              isSpeaking && isActuallyConnected ? "animate-glow-pulse opacity-100" : "opacity-0 scale-y-50"
           )}
         />
 
         <footer className="w-full flex items-center justify-center p-6 z-10">
-          <Button onClick={disconnectGlove} variant="destructive" size="icon" className="w-16 h-16 rounded-full bg-red-600/90 hover:bg-red-600 text-white shadow-2xl shadow-red-500/30 ring-2 ring-white/20">
-            <X className="h-7 w-7"/>
-          </Button>
+          {isActuallyConnected ? (
+            <Button onClick={disconnectGlove} variant="destructive" size="icon" className="w-16 h-16 rounded-full shadow-lg shadow-destructive/30 ring-2 ring-foreground/20">
+              <X className="h-7 w-7"/>
+            </Button>
+          ) : (
+             <Button onClick={handleGoBack} variant="outline" className="rounded-full px-6">
+                Go Back
+            </Button>
+          )}
         </footer>
 
         <audio
@@ -155,9 +205,9 @@ export default function Home() {
   }
   
   return (
-      <main className="bg-[#08090C] text-white flex flex-col min-h-screen items-center justify-between p-8 font-sans">
-        <header className="w-full flex justify-end items-center text-sm opacity-50">
-            {/* Status bar elements can go here */}
+      <main className="bg-background text-foreground flex flex-col min-h-screen items-center justify-between p-8 font-sans">
+        <header className="w-full flex justify-start items-center text-sm">
+            <ThemeToggleButton />
         </header>
         
         <section className="flex flex-col items-center justify-center flex-grow">
@@ -170,7 +220,7 @@ export default function Home() {
                  </svg>
             </div>
         </div>
-          <p className="mt-12 text-center text-neutral-400 text-lg">
+          <p className="mt-12 text-center text-muted-foreground text-lg">
             Turn on the Bluetooth connection<br />of this device.
           </p>
         </section>
@@ -186,13 +236,13 @@ export default function Home() {
                 'CONNECT'
             )}
           </Button>
-          <Button variant="link" className="text-neutral-400 hover:text-white mt-2 text-base font-normal">
+          <Button onClick={handleSkip} variant="link" className="text-muted-foreground hover:text-foreground mt-2 text-base font-normal">
             START WITHOUT NEREUS
           </Button>
           <div className="flex justify-between w-full items-center mt-2 px-2">
             <div className="w-6"/>
-            <p className="text-neutral-500 text-sm">NEREUS 1.0</p>
-            <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-white h-8 w-8">
+            <p className="text-muted-foreground text-sm">NEREUS 1.0</p>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-8 w-8">
               <Settings className="w-5 h-5"/>
             </Button>
           </div>
