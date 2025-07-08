@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Power, LoaderCircle, Settings } from 'lucide-react';
+import { X, LoaderCircle, Settings } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/tts-flow';
+import { cn } from "@/lib/utils";
 
 // IMPORTANT: Replace with your actual glove's service and characteristic UUIDs
 const GLOVE_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
@@ -15,6 +16,7 @@ export default function Home() {
   const [message, setMessage] = useState("Waiting for glove...");
   const [subtitle, setSubtitle] = useState("");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const textBuffer = useRef("");
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -50,6 +52,7 @@ export default function Home() {
     setDevice(null);
     setMessage("Glove disconnected.");
     setSubtitle("");
+    setIsSpeaking(false);
   }, []);
 
   const connectGlove = useCallback(async () => {
@@ -96,47 +99,48 @@ export default function Home() {
 
   useEffect(() => {
     if (audioUrl && audioRef.current) {
+      audioRef.current.src = audioUrl;
       audioRef.current.play().catch(e => console.error("Audio playback failed", e));
     }
   }, [audioUrl]);
 
   const handleAudioPlay = () => {
     setSubtitle(message);
+    setIsSpeaking(true);
   }
 
   const handleAudioEnd = () => {
     setSubtitle("");
+    setIsSpeaking(false);
   }
   
   if (device) {
     return (
-      <main className="bg-background text-foreground flex flex-col min-h-screen items-center justify-between p-8 font-sans text-center">
-        
-        <header className="w-full max-w-lg">
-          <h1 className="text-4xl font-bold text-primary-foreground tracking-tight shadow-sm">
-            Nereus Glove Translator
-          </h1>
+      <main className="relative bg-black text-white flex flex-col min-h-screen items-center justify-between p-4 font-sans text-center overflow-hidden">
+        <header className="w-full flex items-center justify-start z-10 p-2">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+            <span className="text-sm font-medium">Live</span>
+          </div>
         </header>
-        
-        <section className="flex flex-col items-center justify-center flex-grow w-full max-w-lg">
-          <div className="w-full h-52 bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg flex items-center justify-center p-6 my-6 transition-all duration-300 ease-in-out">
-            <p className="text-5xl font-semibold text-primary break-words">
-              {message}
-            </p>
-          </div>
-          <div className="h-12 text-2xl text-accent font-medium">
+
+        <section className="flex-grow flex items-center justify-center z-10">
+          <p className="text-3xl font-medium text-white/90 max-w-lg px-4 transition-opacity duration-300">
             {subtitle}
-          </div>
+          </p>
         </section>
 
-        <footer className="w-full max-w-lg flex flex-col items-center">
-             <Button onClick={disconnectGlove} size="lg" className="w-full rounded-full text-lg py-7 shadow-lg bg-destructive/80 hover:bg-destructive">
-               <Power className="mr-3 h-6 w-6"/>
-               Disconnect Glove
-             </Button>
-          <p className="mt-6 text-base text-muted-foreground font-light">
-            Powered by AceOfMaze
-          </p>
+        <div
+          className={cn(
+              "absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom,_hsl(var(--primary)/0.25)_0%,_transparent_70%)] transition-all duration-500 ease-in-out origin-bottom pointer-events-none",
+              isSpeaking ? "animate-glow-pulse opacity-100" : "opacity-0 scale-y-50"
+          )}
+        />
+
+        <footer className="w-full flex items-center justify-center p-6 z-10">
+          <Button onClick={disconnectGlove} variant="destructive" size="icon" className="w-16 h-16 rounded-full bg-red-600/90 hover:bg-red-600 text-white shadow-2xl shadow-red-500/30 ring-2 ring-white/20">
+            <X className="h-7 w-7"/>
+          </Button>
         </footer>
 
         <audio
