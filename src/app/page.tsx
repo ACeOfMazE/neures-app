@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bluetooth, BluetoothConnected, LoaderCircle } from 'lucide-react';
+import { Power, LoaderCircle, Settings } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/tts-flow';
 
 // IMPORTANT: Replace with your actual glove's service and characteristic UUIDs
@@ -108,7 +108,8 @@ export default function Home() {
     setSubtitle("");
   }
   
-  return (
+  if (device) {
+    return (
       <main className="bg-background text-foreground flex flex-col min-h-screen items-center justify-between p-8 font-sans text-center">
         
         <header className="w-full max-w-lg">
@@ -129,22 +130,10 @@ export default function Home() {
         </section>
 
         <footer className="w-full max-w-lg flex flex-col items-center">
-          {device ? (
              <Button onClick={disconnectGlove} size="lg" className="w-full rounded-full text-lg py-7 shadow-lg bg-destructive/80 hover:bg-destructive">
-               <BluetoothConnected className="mr-3 h-6 w-6"/>
+               <Power className="mr-3 h-6 w-6"/>
                Disconnect Glove
              </Button>
-          ) : (
-            <Button onClick={connectGlove} disabled={isConnecting} size="lg" className="w-full rounded-full text-lg py-7 shadow-lg bg-primary hover:bg-primary/90">
-              {isConnecting ? (
-                <LoaderCircle className="mr-3 h-6 w-6 animate-spin"/>
-              ) : (
-                <Bluetooth className="mr-3 h-6 w-6"/>
-              )}
-              {isConnecting ? "Connecting..." : "🔗 Connect Glove"}
-            </Button>
-          )}
-
           <p className="mt-6 text-base text-muted-foreground font-light">
             Powered by AceOfMaze
           </p>
@@ -157,6 +146,53 @@ export default function Home() {
           onEnded={handleAudioEnd}
           className="hidden"
         />
+      </main>
+    );
+  }
+  
+  return (
+      <main className="bg-[#08090C] text-white flex flex-col min-h-screen items-center justify-between p-8 font-sans">
+        <header className="w-full flex justify-end items-center text-sm opacity-50">
+            {/* Status bar elements can go here */}
+        </header>
+        
+        <section className="flex flex-col items-center justify-center flex-grow">
+          <div className="relative flex items-center justify-center w-64 h-64">
+            <div className="absolute w-full h-full rounded-full bg-primary/10 animate-pulse"></div>
+            <div className="absolute w-2/3 h-2/3 rounded-full bg-primary/20 animate-pulse" style={{ animationDelay: '200ms' }}></div>
+            <div className="relative w-1/2 h-1/2 rounded-full bg-primary flex items-center justify-center shadow-2xl shadow-primary/30">
+                 <svg className="w-10 h-10 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 7l10 10-5 5V2l5 5L7 17"/>
+                 </svg>
+            </div>
+        </div>
+          <p className="mt-12 text-center text-neutral-400 text-lg">
+            Turn on the Bluetooth connection<br />of this device.
+          </p>
+        </section>
+
+        <footer className="w-full max-w-xs flex flex-col items-center gap-2">
+          <Button onClick={connectGlove} disabled={isConnecting} size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-full text-lg shadow-lg shadow-primary/20">
+            {isConnecting ? (
+              <div className="flex items-center justify-center">
+                <LoaderCircle className="animate-spin mr-2 h-6 w-6"/>
+                <span>CONNECTING...</span>
+              </div>
+            ) : (
+                'CONNECT'
+            )}
+          </Button>
+          <Button variant="link" className="text-neutral-400 hover:text-white mt-2 text-base font-normal">
+            START WITHOUT NEREUS
+          </Button>
+          <div className="flex justify-between w-full items-center mt-2 px-2">
+            <div className="w-6"/>
+            <p className="text-neutral-500 text-sm">NEREUS 1.0</p>
+            <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-white h-8 w-8">
+              <Settings className="w-5 h-5"/>
+            </Button>
+          </div>
+        </footer>
       </main>
   );
 }
